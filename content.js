@@ -21,13 +21,18 @@
     // Shared modal (host modal, but we append DOM ourselves)
     // ------------------------------------------------------------
     function openPanel(title, node) {
-        client.openModal(title, '', {
-            breedte: 'min(640px, calc(100vw - 32px))',
-            onOpen: function (backdrop, modal) {
-                const body = modal.querySelector('#egodact-modal-body');
-                if (body) { body.innerHTML = ''; body.appendChild(node); }
-            }
-        });
+        // The SDK's openModal only takes (title, bodyHtml) and renders a
+        // string. Open it empty, then move the real DOM node into the body.
+        client.openModal(title, '');
+        const backdrop = document.getElementById('egodact-custom-modal-backdrop');
+        if (!backdrop) return;
+        const modal = backdrop.firstElementChild;
+        if (modal) modal.style.width = 'min(640px, calc(100vw - 32px))';
+        const content = backdrop.querySelector('div[style*="overflow-y:auto"]');
+        if (content) {
+            content.innerHTML = '';
+            content.appendChild(node);
+        }
     }
 
     // ------------------------------------------------------------
@@ -414,7 +419,8 @@
         window.addEventListener('resize', () => { if (open) position(); });
         window.addEventListener('scroll', () => { if (open) position(); }, true);
 
-        target.parentNode.insertBefore(btn, target);
+        // Place the button to the right of the name.
+        target.parentNode.insertBefore(btn, target.nextSibling);
     }
 
     // Wait for the header/name to exist.
