@@ -461,12 +461,13 @@
                 } else {
                     arr.forEach(ch => {
                         if (!ch) return;
-                        const id = String(ch.id || ch.challengeId || ch.name || '').trim();
-                        const name = String(ch.name || ch.title || id || 'Challenge').trim();
+                        const id = String(ch.id || ch.challengeId || '').trim();
+                        const name = String(ch.naam || ch.name || ch.title || ch.challengeName || ch.displayName || id || 'Challenge').trim();
                         if (!id && !name) return;
                         const opt = document.createElement('option');
                         opt.value = id || name;
                         opt.textContent = name;
+                        opt.title = name;
                         linkSelect.appendChild(opt);
                     });
                 }
