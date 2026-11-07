@@ -715,6 +715,10 @@
                 client.registerMenu(meta);
                 client.onOpen(it.id, it.run);
             }
+            // Backwards compat: also register as a normal menu so older
+            // hosts (which don't know about the hamburger type) still
+            // show the items in their Addons library / hamburger.
+            try { client.registerMenu(meta); } catch (e) {}
         });
 
         // Theme listener: re-apply compact on theme change (no 1.5s needed).
