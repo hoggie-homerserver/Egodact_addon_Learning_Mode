@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Egodact Addon: Learning Mode",
+  "version": "0.1.0",
+  "description": "Eisenhower matrix, compact mode, floating notepad, shortcuts, grade sync and lo-fi player for Egodact.",
+  "content_scripts": [
+    {
+      "matches": ["https://app.egodact.com/*"],
+      "js": ["sdk.js", "lib.js", "content.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://*.magister.net/*", "https://*.somtoday.nl/*"],
+      "js": ["js/grade-scrape.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "host_permissions": [
+    "https://app.egodact.com/*",
+    "https://*.magister.net/*",
+    "https://*.somtoday.nl/*"
+  ],
+  "permissions": ["storage"]
+}
