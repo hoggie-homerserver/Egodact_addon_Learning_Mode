@@ -7,8 +7,8 @@ A single-menu addon for Egodact Smart that bundles study/productivity tools with
 - **Compact mode** – toggle visibility of host/addon UI elements.
 - **Floating notepad** – draggable, persisted in localStorage.
 - **Keyboard shortcuts** – Ctrl+Shift+N/M/L.
-- **Grade sync** – reads your own Magister/Somtoday session (content script on those domains) and shows grades in Egodact. No school involvement.
-- **Lo-fi player** – free internet radio stream.
+- **Mail sync** – reads your own Magister/Somtoday "Berichten" (content script on those domains) and shows messages in Egodact. No school involvement.
+
 
 ## How grade sync works (no school rules)
 A separate content script runs only on `*.magister.net` / `*.somtoday.nl` while you are logged in. It scrapes grades from the page DOM and stores them in the extension's shared `chrome.storage.local`. The Egodact-side UI reads that storage. Only your own session data is used.

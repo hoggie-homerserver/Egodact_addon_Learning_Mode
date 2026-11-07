@@ -158,13 +158,13 @@
         return wrap;
     }
 
-    // ---------- 5. Grade sync (client-side display) ----------
-    function renderGrades() {
+    // ---------- 5. Mail sync (Magister/Somtoday berichten) ----------
+    function renderMails() {
         const wrap = document.createElement('div');
         wrap.style.cssText = 'display:flex; flex-direction:column; gap:8px;';
         const info = document.createElement('div');
         info.style.cssText = 'font-size:12px; color:var(--egd-tekst-zacht);';
-        info.textContent = 'Open Magister of Somtoday in een ander tabblad; deze addon leest daar je cijfers (alleen jouw sessie) en slaat ze lokaal op.';
+        info.textContent = 'Open Magister of Somtoday (Berichten) in een ander tabblad; deze addon leest daar je berichten (alleen jouw sessie) en toont ze hier.';
         wrap.appendChild(info);
         const list = document.createElement('div');
         list.style.cssText = 'display:flex; flex-direction:column; gap:4px;';
@@ -174,36 +174,32 @@
         status.textContent = 'Laden...';
         wrap.appendChild(status);
 
-        function show(grades) {
+        function show(mails) {
             list.innerHTML = '';
-            if (!grades || !grades.length) {
+            if (!mails || !mails.length) {
                 const leeg = document.createElement('div');
-                leeg.textContent = 'Nog geen cijfers gesynchroniseerd. Open Magister/Somtoday en ververs.';
+                leeg.textContent = 'Nog geen berichten gesynchroniseerd. Open Magister/Somtoday Berichten en ververs.';
                 leeg.style.cssText = 'padding:12px; text-align:center; color:var(--egd-tekst-zacht); background:var(--egd-veld); border-radius:6px;';
                 list.appendChild(leeg);
                 status.textContent = '';
                 return;
             }
-            grades.forEach(g => {
+            mails.forEach(m => {
                 const row = document.createElement('div');
-                row.style.cssText = 'display:flex; justify-content:space-between; padding:6px 8px; background:var(--egd-veld); border-radius:4px; font-size:13px;';
-                row.innerHTML = '<span>' + (g.vak||'') + '</span><strong>' + (g.cijfer||'') + '</strong>';
+                row.style.cssText = 'padding:8px; background:var(--egd-veld); border-radius:4px; font-size:12px; line-height:1.4;';
+                row.textContent = m.tekst;
                 list.appendChild(row);
             });
-            status.textContent = grades.length + ' cijfers geladen.';
+            status.textContent = mails.length + ' berichten geladen.';
         }
 
         try {
             if (chrome && chrome.storage && chrome.storage.local) {
-                chrome.storage.local.get('lm_grades', (res) => {
-                    show((res && res.lm_grades) || []);
-                });
+                chrome.storage.local.get('lm_mails', (res) => { show((res && res.lm_mails) || []); });
             } else {
-                show(store.get('grades', []));
+                show([]);
             }
-        } catch (err) {
-            show(store.get('grades', []));
-        }
+        } catch (err) { show([]); }
 
         const btn = document.createElement('button');
         btn.textContent = 'Vernieuwen';
@@ -211,47 +207,11 @@
         btn.addEventListener('click', () => {
             try {
                 if (chrome && chrome.storage && chrome.storage.local) {
-                    chrome.storage.local.get('lm_grades', (res) => {
-                        show((res && res.lm_grades) || []);
-                    });
+                    chrome.storage.local.get('lm_mails', (res) => { show((res && res.lm_mails) || []); });
                 }
             } catch (err) {}
         });
         wrap.appendChild(btn);
-        return wrap;
-    }
-
-    // ---------- 6. Lo-fi player ----------
-    let audioEl = null;
-    function renderLoFi() {
-        const wrap = document.createElement('div');
-        wrap.style.cssText = 'display:flex; flex-direction:column; gap:8px;';
-        const info = document.createElement('div');
-        info.style.cssText = 'font-size:12px; color:var(--egd-tekst-zacht);';
-        info.textContent = 'Gratis 24/7 lo-fi stream. Vereist internet.';
-        wrap.appendChild(info);
-        const url = 'https://streams.ilovemusic.de/iloveradio17.mp3'; // placeholder free stream
-        if (!audioEl) {
-            audioEl = document.createElement('audio');
-            audioEl.src = url;
-            audioEl.loop = true;
-            document.body.appendChild(audioEl);
-        }
-        const controls = document.createElement('div');
-        controls.style.cssText = 'display:flex; gap:8px; align-items:center;';
-        const play = document.createElement('button');
-        play.textContent = '▶ Play';
-        play.style.cssText = 'padding:8px 12px; border:none; border-radius:4px; background:var(--egd-accent); color:var(--egd-accent-tekst); font-weight:bold; cursor:pointer;';
-        play.addEventListener('click', () => {
-            if (audioEl.paused) { audioEl.play(); play.textContent='⏸ Pause'; }
-            else { audioEl.pause(); play.textContent='▶ Play'; }
-        });
-        const vol = document.createElement('input');
-        vol.type='range'; vol.min='0'; vol.max='1'; vol.step='0.05'; vol.value='0.5';
-        vol.addEventListener('input', () => { audioEl.volume = parseFloat(vol.value); });
-        audioEl.volume = 0.5;
-        controls.append(play, vol);
-        wrap.appendChild(controls);
         return wrap;
     }
 
@@ -265,8 +225,7 @@
             { title:'Compact', render: renderCompact },
             { title:'Notepad', render: () => { openNotepad(); const d=document.createElement('div'); d.textContent='Notepad geopend (floating).'; return d; } },
             { title:'Shortcuts', render: renderShortcuts },
-            { title:'Cijfers', render: renderGrades },
-            { title:'Lo-Fi', render: renderLoFi }
+            { title:'Berichten', render: renderMails }
         ];
         // simple tab buttons
         const tabBar = document.createElement('div');
