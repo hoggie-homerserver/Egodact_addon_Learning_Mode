@@ -1,20 +1,14 @@
 # Egodact Addon: Learning Mode
 
-A single-menu addon for Egodact Smart that bundles study/productivity tools without cluttering the top bar. A hamburger button (3 lines) sits next to your name and opens an animated dropdown with all features. The lines rotate vertical when open.
+A single-menu addon for Egodact Smart. A hamburger button (3 lines) sits to the right of your name and opens an animated dropdown. The lines rotate vertical when open.
 
 ## Features
-- **Eisenhower matrix** – 4-quadrant task view (do/schedule/delegate/drop).
-- **Compact mode** – toggle visibility of host/addon UI elements.
+- **Eisenhower matrix** – clean 4-quadrant task view (Do / Plan / Delegeer / Laat vallen) with counts, add and delete.
+- **Compact mode** – custom switches to hide the Tijd/Beta/Addons/addon buttons and compact the challenge cards.
 - **Floating notepad** – draggable, persisted in localStorage.
-- **Keyboard shortcuts** – Ctrl+Shift+N/M/L.
-- **Mail sync** – reads your own Magister/Somtoday "Berichten" (content script on those domains) and shows messages in Egodact. No school involvement.
-
-
-## How grade sync works (no school rules)
-A separate content script runs only on `*.magister.net` / `*.somtoday.nl` while you are logged in. It scrapes grades from the page DOM and stores them in the extension's shared `chrome.storage.local`. The Egodact-side UI reads that storage. Only your own session data is used.
 
 ## Files
-- `manifest.json`, `sdk.js`, `lib.js`, `content.js`, `js/grade-scrape.js`
+- `manifest.json`, `sdk.js`, `lib.js`, `content.js`
 
 ## Install
 Load the folder as an unpacked extension in Chrome/Edge/Firefox (developer mode). Host extension (Egodact Smart) must also be loaded.
