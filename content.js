@@ -69,8 +69,9 @@
         store.set('matrix_' + key, arr);
     }
 
-    function renderMatrix() {
-        const grid = document.createElement('div');
+    function renderMatrix(container) {
+        const grid = container || document.createElement('div');
+        grid.innerHTML = '';
         grid.style.cssText = 'display:grid; grid-template-columns:1fr 1fr; gap:10px;';
 
         QUADS.forEach(q => {
@@ -92,17 +93,14 @@
             list.setAttribute('data-lm-list', q.key);
             card.appendChild(list);
 
-            function renderItems() {
-                list.innerHTML = '';
-                const items = getMatrixItems(q.key);
-                count.textContent = items.length;
-                if (!items.length) {
-                    const empty = document.createElement('div');
-                    empty.textContent = 'Sleep hier een taak of typ er een';
-                    empty.style.cssText = 'font-size:11px; color:var(--egd-tekst-zacht); padding:6px 0;';
-                    list.appendChild(empty);
-                    return;
-                }
+            const items = getMatrixItems(q.key);
+            count.textContent = items.length;
+            if (!items.length) {
+                const empty = document.createElement('div');
+                empty.textContent = 'Sleep hier een taak of typ er een';
+                empty.style.cssText = 'font-size:11px; color:var(--egd-tekst-zacht); padding:6px 0;';
+                list.appendChild(empty);
+            } else {
                 items.forEach((it, idx) => {
                     const row = document.createElement('div');
                     row.draggable = true;
@@ -113,14 +111,14 @@
                     span.textContent = it;
                     span.style.cssText = 'flex:1; overflow-wrap:anywhere;';
                     const del = document.createElement('button');
-                    del.textContent = '×';
+                    del.textContent = '\u00d7';
                     del.style.cssText = 'border:none; background:transparent; color:var(--egd-tekst-zacht); cursor:pointer; font-size:15px; line-height:1; padding:0 2px;';
                     del.addEventListener('click', (e) => {
                         e.stopPropagation();
                         const arr = getMatrixItems(q.key);
                         arr.splice(idx, 1);
                         setMatrixItems(q.key, arr);
-                        renderItems();
+                        renderMatrix(grid);
                     });
                     row.append(dot, span, del);
 
@@ -134,11 +132,10 @@
                     list.appendChild(row);
                 });
             }
-            renderItems();
 
-            // Drop target.
             list.addEventListener('dragover', (e) => {
                 e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
                 list.style.background = 'rgba(255,255,255,.04)';
             });
             list.addEventListener('dragleave', () => { list.style.background = ''; });
@@ -147,10 +144,8 @@
                 list.style.background = '';
                 let payload = null;
                 try { payload = JSON.parse(e.dataTransfer.getData('text/plain') || 'null'); } catch (err) {}
-                if (!payload || payload.from === q.key) {
-                    if (payload && payload.from === q.key) return;
-                }
-                if (!payload) return;
+                if (!payload || payload.from == null) return;
+                if (payload.from === q.key) return;
 
                 const srcArr = getMatrixItems(payload.from);
                 if (payload.index < 0 || payload.index >= srcArr.length) return;
@@ -158,17 +153,11 @@
                 if (moved == null) return;
                 setMatrixItems(payload.from, srcArr);
 
-                // Re-render source quadrant if visible.
-                const srcList = grid.querySelector('[data-lm-list="' + payload.from + '"]');
-                if (srcList) {
-                    // trigger its renderItems by re-rendering whole matrix
-                }
-
                 const tgtArr = getMatrixItems(q.key);
                 tgtArr.push(moved);
                 setMatrixItems(q.key, tgtArr);
 
-                renderMatrix();
+                renderMatrix(grid);
             });
 
             const addRow = document.createElement('div');
@@ -186,8 +175,7 @@
                 const arr = getMatrixItems(q.key);
                 arr.push(v);
                 setMatrixItems(q.key, arr);
-                input.value = '';
-                renderMatrix();
+                renderMatrix(grid);
             }
             addBtn.addEventListener('click', add);
             input.addEventListener('keydown', e => { if (e.key === 'Enter') add(); });
@@ -445,19 +433,33 @@
         }
 
         function loadChallengesIntoSelect() {
-            linkSelect.innerHTML = '<option value="">(geen)</option>';
-            const c = client;
-            const challenges = (typeof c.getChallenges === 'function') ? c.getChallenges(false) : Promise.resolve([]);
-            challenges.then(list => {
-                (list || []).forEach(ch => {
+            linkSelect.innerHTML = '<option value="">(geen)</option><option value="" disabled>Laden...</option>';
+            const loader = (typeof client.getChallenges === 'function')
+                ? client.getChallenges(false)
+                : (window.EgodactAddons && typeof window.EgodactAddons.getChallenges === 'function'
+                    ? window.EgodactAddons.getChallenges(false)
+                    : Promise.resolve([]));
+            loader.then(list => {
+                linkSelect.innerHTML = '<option value="">(geen)</option>';
+                if (!list || !list.length) {
                     const opt = document.createElement('option');
-                    opt.value = ch.id || ch.name;
-                    opt.textContent = ch.name || ch.id;
+                    opt.value = '';
+                    opt.disabled = true;
+                    opt.textContent = '(geen challenges gevonden)';
                     linkSelect.appendChild(opt);
-                });
+                } else {
+                    (list || []).forEach(ch => {
+                        const opt = document.createElement('option');
+                        opt.value = ch.id || ch.name || '';
+                        opt.textContent = ch.name || ch.id || 'Challenge';
+                        linkSelect.appendChild(opt);
+                    });
+                }
                 const n = activeNote();
                 if (n && n.challengeId) linkSelect.value = n.challengeId;
-            }).catch(() => {});
+            }).catch(() => {
+                linkSelect.innerHTML = '<option value="">(geen)</option>';
+            });
         }
         loadChallengesIntoSelect();
 
@@ -705,20 +707,18 @@
         const helper = (L && L.hamburger) ? L.hamburger : null;
         items.forEach(it => {
             const meta = { addonId: addonId, id: it.id, title: it.title, icon: it.icon, order: it.order };
-            if (helper) {
+            if (helper && typeof helper.add === 'function') {
                 helper.add(meta);
                 helper.onOpen(it.id, it.run);
             } else if (typeof client.registerHamburger === 'function') {
                 client.registerHamburger(meta);
                 client.onOpen(it.id, it.run);
+                // Backwards compat for hosts without hamburger type:
+                client.registerMenu(meta);
             } else {
                 client.registerMenu(meta);
                 client.onOpen(it.id, it.run);
             }
-            // Backwards compat: also register as a normal menu so older
-            // hosts (which don't know about the hamburger type) still
-            // show the items in their Addons library / hamburger.
-            try { client.registerMenu(meta); } catch (e) {}
         });
 
         // Theme listener: re-apply compact on theme change (no 1.5s needed).
