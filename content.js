@@ -246,7 +246,8 @@
         });
         body.append(tabBar, content);
         // open first tab
-        setTimeout(() => { tabBar.querySelector('button').click(); }, 0);
+        const firstBtn = tabBar.querySelector('button');
+        if (firstBtn) firstBtn.click();
 
         client.openModal('Learning Mode', '', {
             breedte: 'min(640px, calc(100vw - 32px))',
