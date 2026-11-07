@@ -639,6 +639,26 @@
     };
 
     // ============================================================
+    // HAMBURGER MENU HELPER
+    // ============================================================
+    // Addons register menu items here; the host shows a hamburger
+    // button next to the user's name only when at least one item exists.
+    const hamburger = {
+        add: function (meta) {
+            meta = meta || {};
+            if (client() && typeof client().registerMenu === 'function') {
+                client().registerMenu(meta);
+            }
+            return meta.id;
+        },
+        onOpen: function (id, cb) {
+            if (client() && typeof client().onOpen === 'function') {
+                client().onOpen(id, cb);
+            }
+        }
+    };
+
+    // ============================================================
     // EXPORT
     // ============================================================
     const lib = {
@@ -649,7 +669,8 @@
         ui: ui,
         game: game,
         data: data,
-        layout: layout
+        layout: layout,
+        hamburger: hamburger
     };
 
     if (typeof module !== 'undefined' && module.exports) module.exports = lib;

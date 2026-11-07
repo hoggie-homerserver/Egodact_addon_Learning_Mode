@@ -1,11 +1,14 @@
 # Egodact Addon: Learning Mode
 
-A single-menu addon for Egodact Smart. A hamburger button (3 lines) sits to the right of your name and opens an animated dropdown. The lines rotate vertical when open.
+Adds study/productivity tools to the **host's hamburger menu**. The hamburger only appears when at least one addon registers a menu item (`EgodactAddonLib.hamburger.add`).
 
 ## Features
 - **Eisenhower matrix** – clean 4-quadrant task view (Do / Plan / Delegeer / Laat vallen) with counts, add and delete.
 - **Compact mode** – custom switches to hide the Tijd/Beta/Addons/addon buttons and compact the challenge cards.
 - **Floating notepad** – draggable, persisted in localStorage.
+
+## Enable / disable
+The addon is listed in the host's Addons menu. Turning it off (reload) prevents it from registering its menu items, so the hamburger disappears when no other addon uses it.
 
 ## Files
 - `manifest.json`, `sdk.js`, `lib.js`, `content.js`

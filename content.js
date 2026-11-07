@@ -267,123 +267,37 @@
     ];
 
     // ------------------------------------------------------------
-    // Hamburger button (right of the name)
+    // Register features in the host's hamburger menu
     // ------------------------------------------------------------
-    function injectStyle() {
-        if (document.getElementById('lm-style')) return;
-        const style = document.createElement('style');
-        style.id = 'lm-style';
-        style.textContent = `
-            #lm-toggle {
-                display: inline-flex; align-items: center; justify-content: center;
-                border: none; background: transparent; cursor: pointer;
-                padding: 0 6px; margin: 0 10px 0 12px;
-                color: var(--egd-tekst, #fff); opacity: .85;
-                transition: opacity 150ms ease; flex-shrink: 0;
-            }
-            #lm-toggle:hover { opacity: 1; }
-            #lm-toggle .lm-icon {
-                display: flex; flex-direction: column; justify-content: space-between;
-                width: 20px; height: 14px;
-                transition: transform 220ms cubic-bezier(.4,0,.2,1);
-                transform: rotate(0deg);
-            }
-            #lm-toggle.lm-open .lm-icon { transform: rotate(90deg); }
-            #lm-toggle .lm-icon span { display:block; height:2px; width:100%; background:currentColor; border-radius:2px; }
-            #lm-dropdown {
-                position: fixed; background: var(--egd-modal, #424242); color: var(--egd-tekst, #fff);
-                border: 1px solid var(--egd-rand, #555); border-radius: 8px;
-                box-shadow: var(--egd-schaduw, 0 8px 24px rgba(0,0,0,.4));
-                padding: 6px; display: flex; flex-direction: column; gap: 2px; min-width: 190px;
-                opacity: 0; transform: translateY(-8px) scale(.98); transform-origin: top right;
-                pointer-events: none;
-                transition: opacity 180ms ease, transform 180ms cubic-bezier(.4,0,.2,1);
-                z-index: 2147483000;
-            }
-            #lm-dropdown.lm-open { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
-            #lm-dropdown button {
-                text-align: left; padding: 9px 12px; border: none; background: transparent;
-                color: var(--egd-tekst, #fff); cursor: pointer; border-radius: 5px;
-                font-size: 13px; font-family: inherit; width: 100%;
-            }
-            #lm-dropdown button:hover { background: var(--egd-hover, rgba(255,255,255,.08)); }
-            body.lm-compact [class*="challenge" i],
-            body.lm-compact [class*="card" i] { padding: 4px !important; }
-        `;
-        document.head.appendChild(style);
+    const addonId = 'egodact-learning-mode';
+
+    function addonDisabled() {
+        try {
+            const raw = localStorage.getItem('egodact_disabled_addons');
+            const list = raw ? JSON.parse(raw) : [];
+            return Array.isArray(list) && list.indexOf(addonId) !== -1;
+        } catch (err) { return false; }
     }
 
-    function findNameElement() {
-        const nodes = document.querySelectorAll('header *, nav *');
-        let best = null;
-        nodes.forEach(el => {
-            const txt = (el.textContent || '').trim();
-            if (/welcome|hallo|goedemorgen|goedemiddag/i.test(txt) && txt.length < 60) {
-                if (!best || el.children.length < best.children.length) best = el;
+    if (!addonDisabled()) {
+        const items = [
+            { id: 'lm-matrix', title: 'Eisenhower matrix', run: () => openPanel('Eisenhower Matrix', renderMatrix()) },
+            { id: 'lm-compact', title: 'Compact mode', run: () => openPanel('Compact mode', renderCompact()) },
+            { id: 'lm-notepad', title: 'Notepad', run: openNotepad }
+        ];
+
+        items.forEach(it => {
+            if (window.EgodactAddonLib && window.EgodactAddonLib.hamburger) {
+                window.EgodactAddonLib.hamburger.add({ addonId: addonId, id: it.id, title: it.title });
+                window.EgodactAddonLib.hamburger.onOpen(it.id, it.run);
+            } else {
+                client.registerMenu({ addonId: addonId, id: it.id, title: it.title });
+                client.onOpen(it.id, it.run);
             }
         });
-        return best;
-    }
 
-    function injectToggle() {
-        if (document.getElementById('lm-toggle')) return;
-        const target = findNameElement();
-        if (!target || !target.parentNode) return;
-
-        injectStyle();
-
-        const btn = document.createElement('button');
-        btn.id = 'lm-toggle';
-        btn.type = 'button';
-        btn.title = 'Learning Mode';
-        btn.innerHTML = '<span class="lm-icon"><span></span><span></span><span></span></span>';
-
-        const rect = target.getBoundingClientRect();
-        const h = Math.min(48, Math.max(32, Math.round((rect.height || 22) * 1.4)));
-        btn.style.height = h + 'px';
-        btn.style.width = h + 'px';
-        btn.style.minWidth = h + 'px';
-
-        const dropdown = document.createElement('div');
-        dropdown.id = 'lm-dropdown';
-        menuItems.forEach(it => {
-            const item = document.createElement('button');
-            item.type = 'button';
-            item.textContent = it.title;
-            item.addEventListener('click', () => { close(); it.run(); });
-            dropdown.appendChild(item);
-        });
-        document.body.appendChild(dropdown);
-
-        let open = false;
-        function position() {
-            const r = btn.getBoundingClientRect();
-            dropdown.style.top = (r.bottom + 6) + 'px';
-            dropdown.style.left = Math.max(8, Math.min(window.innerWidth - 200, r.left)) + 'px';
-        }
-        function openMenu() { open = true; position(); dropdown.classList.add('lm-open'); btn.classList.add('lm-open'); }
-        function close() { if (!open) return; open = false; dropdown.classList.remove('lm-open'); btn.classList.remove('lm-open'); }
-        function toggle() { if (open) close(); else openMenu(); }
-
-        btn.addEventListener('click', e => { e.stopPropagation(); toggle(); });
-        document.addEventListener('click', e => { if (open && !dropdown.contains(e.target) && e.target !== btn) close(); });
-        window.addEventListener('resize', () => { if (open) position(); });
-        window.addEventListener('scroll', () => { if (open) position(); }, true);
-
-        // Right of the name.
-        target.parentNode.insertBefore(btn, target.nextSibling);
-    }
-
-    let tries = 0;
-    const timer = setInterval(() => {
-        tries++;
-        injectToggle();
+        // Apply compact settings on load and keep them applied.
         applyCompact();
-        if (document.getElementById('lm-toggle') || tries > 40) clearInterval(timer);
-    }, 500);
-
-    try {
-        const mo = new MutationObserver(() => { if (!document.getElementById('lm-toggle')) injectToggle(); });
-        mo.observe(document.body, { childList: true, subtree: true });
-    } catch (err) {}
+        setInterval(applyCompact, 1500);
+    }
 })();
