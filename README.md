@@ -1,6 +1,6 @@
 # Egodact Addon: Learning Mode
 
-A single-menu addon for Egodact Smart that bundles study/productivity tools without cluttering the top bar.
+A single-menu addon for Egodact Smart that bundles study/productivity tools without cluttering the top bar. A hamburger button (3 lines) sits next to your name and opens an animated dropdown with all features. The lines rotate vertical when open.
 
 ## Features
 - **Eisenhower matrix** – 4-quadrant task view (do/schedule/delegate/drop).
