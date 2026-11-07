@@ -4,6 +4,9 @@
 (function () {
     'use strict';
 
+    if (window.__egodactLearningModeLoaded) return;
+    window.__egodactLearningModeLoaded = true;
+
     const client = window.EgodactAddonClient;
     if (!client) { console.warn('EgodactAddonClient missing'); return; }
     const L = window.EgodactAddonLib || {};
@@ -390,7 +393,12 @@
         linkLabel.style.cssText = 'font-size:11px; color:var(--egd-tekst-zacht);';
         const linkSelect = document.createElement('select');
         linkSelect.style.cssText = 'flex:1; font-size:11px; padding:2px 4px; border-radius:4px; background:var(--egd-modal); color:var(--egd-tekst); border:1px solid var(--egd-rand);';
-        linkRow.append(linkLabel, linkSelect);
+        const linkRefresh = document.createElement('button');
+        linkRefresh.type = 'button';
+        linkRefresh.textContent = '↻';
+        linkRefresh.title = 'Challenges vernieuwen';
+        linkRefresh.style.cssText = 'border:none;background:transparent;color:var(--egd-tekst-zacht);cursor:pointer;font-size:14px;padding:0 2px;';
+        linkRow.append(linkLabel, linkSelect, linkRefresh);
 
         // Tabs.
         const tabs = document.createElement('div');
@@ -432,36 +440,44 @@
             return notepadState.notes.find(n => n.id === notepadState.activeId) || notepadState.notes[0];
         }
 
-        function loadChallengesIntoSelect() {
+        function loadChallengesIntoSelect(force) {
             linkSelect.innerHTML = '<option value="">(geen)</option><option value="" disabled>Laden...</option>';
             const loader = (typeof client.getChallenges === 'function')
-                ? client.getChallenges(false)
+                ? client.getChallenges(!!force)
                 : (window.EgodactAddons && typeof window.EgodactAddons.getChallenges === 'function'
-                    ? window.EgodactAddons.getChallenges(false)
+                    ? window.EgodactAddons.getChallenges(!!force)
                     : Promise.resolve([]));
             loader.then(list => {
+                // Challenges come back as objects with various shapes;
+                // normalize name/id.
                 linkSelect.innerHTML = '<option value="">(geen)</option>';
-                if (!list || !list.length) {
+                const arr = Array.isArray(list) ? list : [];
+                if (!arr.length) {
                     const opt = document.createElement('option');
                     opt.value = '';
                     opt.disabled = true;
                     opt.textContent = '(geen challenges gevonden)';
                     linkSelect.appendChild(opt);
                 } else {
-                    (list || []).forEach(ch => {
+                    arr.forEach(ch => {
+                        if (!ch) return;
+                        const id = String(ch.id || ch.challengeId || ch.name || '').trim();
+                        const name = String(ch.name || ch.title || id || 'Challenge').trim();
+                        if (!id && !name) return;
                         const opt = document.createElement('option');
-                        opt.value = ch.id || ch.name || '';
-                        opt.textContent = ch.name || ch.id || 'Challenge';
+                        opt.value = id || name;
+                        opt.textContent = name;
                         linkSelect.appendChild(opt);
                     });
                 }
                 const n = activeNote();
                 if (n && n.challengeId) linkSelect.value = n.challengeId;
             }).catch(() => {
-                linkSelect.innerHTML = '<option value="">(geen)</option>';
+                linkSelect.innerHTML = '<option value="">(geen)</option><option value="" disabled>(laden mislukt)</option>';
             });
         }
         loadChallengesIntoSelect();
+        linkRefresh.addEventListener('click', function () { loadChallengesIntoSelect(true); });
 
         function renderTabs() {
             tabs.innerHTML = '';
