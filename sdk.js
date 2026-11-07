@@ -63,6 +63,7 @@
         registerMenu: function (meta) { dispatch('menu', meta || {}); },
         registerButton: function (meta) { dispatch('button', meta || {}); },
         registerGame: function (meta) { dispatch('game', meta || {}); },
+        registerHamburger: function (meta) { dispatch('hamburger', meta || {}); },
         setButtonEnabled: function (addonId, id, enabled) {
             enabled = !!enabled;
             try {

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Egodact Addon: Learning Mode",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Eisenhower matrix, compact mode and floating notepad for Egodact.",
   "content_scripts": [
     {

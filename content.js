@@ -29,7 +29,7 @@
     client.registerAddon({
         id: 'egodact-learning-mode',
         name: 'Learning Mode',
-        version: '0.2.0',
+        version: '0.3.0',
         description: 'Eisenhower matrix, compact mode and floating notepad.',
         author: 'MaxiTaxi'
     });
@@ -215,8 +215,6 @@
             el.style.setProperty('display', store.get('hideAddonButtons', false) ? 'none' : '', 'important');
         });
     }
-    // Re-apply because the host may re-render its header.
-    setInterval(applyCompact, 1500);
 
     // ------------------------------------------------------------
     // Floating notepad
@@ -258,15 +256,6 @@
     }
 
     // ------------------------------------------------------------
-    // Menu
-    // ------------------------------------------------------------
-    const menuItems = [
-        { title: 'Eisenhower matrix', run: () => openPanel('Eisenhower Matrix', renderMatrix()) },
-        { title: 'Compact mode', run: () => openPanel('Compact mode', renderCompact()) },
-        { title: 'Notepad', run: openNotepad }
-    ];
-
-    // ------------------------------------------------------------
     // Register features in the host's hamburger menu
     // ------------------------------------------------------------
     const addonId = 'egodact-learning-mode';
@@ -279,19 +268,46 @@
         } catch (err) { return false; }
     }
 
+    const ICON = (paths) =>
+        '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" ' +
+        'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + paths + '</svg>';
+
     if (!addonDisabled()) {
         const items = [
-            { id: 'lm-matrix', title: 'Eisenhower matrix', run: () => openPanel('Eisenhower Matrix', renderMatrix()) },
-            { id: 'lm-compact', title: 'Compact mode', run: () => openPanel('Compact mode', renderCompact()) },
-            { id: 'lm-notepad', title: 'Notepad', run: openNotepad }
+            {
+                id: 'lm-matrix',
+                title: 'Eisenhower matrix',
+                order: 10,
+                icon: ICON('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>'),
+                run: () => openPanel('Eisenhower Matrix', renderMatrix())
+            },
+            {
+                id: 'lm-compact',
+                title: 'Compact mode',
+                order: 20,
+                icon: ICON('<path d="M4 6h16"/><path d="M4 12h10"/><path d="M4 18h16"/>'),
+                run: () => openPanel('Compact mode', renderCompact())
+            },
+            {
+                id: 'lm-notepad',
+                title: 'Notepad',
+                order: 30,
+                icon: ICON('<path d="M5 4h11l3 3v13H5z"/><path d="M8 9h8"/><path d="M8 13h8"/><path d="M8 17h5"/>'),
+                run: openNotepad
+            }
         ];
 
+        const L = window.EgodactAddonLib;
         items.forEach(it => {
-            if (window.EgodactAddonLib && window.EgodactAddonLib.hamburger) {
-                window.EgodactAddonLib.hamburger.add({ addonId: addonId, id: it.id, title: it.title });
-                window.EgodactAddonLib.hamburger.onOpen(it.id, it.run);
+            const meta = { addonId: addonId, id: it.id, title: it.title, icon: it.icon, order: it.order };
+            if (L && L.hamburger) {
+                L.hamburger.add(meta);
+                L.hamburger.onOpen(it.id, it.run);
+            } else if (typeof client.registerHamburger === 'function') {
+                client.registerHamburger(meta);
+                client.onOpen(it.id, it.run);
             } else {
-                client.registerMenu({ addonId: addonId, id: it.id, title: it.title });
+                client.registerMenu(meta);
                 client.onOpen(it.id, it.run);
             }
         });

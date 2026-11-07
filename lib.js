@@ -641,22 +641,43 @@
     // ============================================================
     // HAMBURGER MENU HELPER
     // ============================================================
-    // Addons register menu items here; the host shows a hamburger
+    // Addons register dropdown items here; the host shows a hamburger
     // button next to the user's name only when at least one item exists.
+    //
+    //   EgodactAddonLib.hamburger.add({ addonId, id, title, icon, order });
+    //   EgodactAddonLib.hamburger.onOpen(id, function () { ... });
+    //
+    // Only items registered through this helper appear in the
+    // hamburger. Regular client.registerMenu() items stay in the
+    // Addons library.
     const hamburger = {
         add: function (meta) {
             meta = meta || {};
-            if (client() && typeof client().registerMenu === 'function') {
-                client().registerMenu(meta);
+            const c = client();
+            if (c) {
+                if (typeof c.registerHamburger === 'function') c.registerHamburger(meta);
+                else if (typeof c.registerMenu === 'function') c.registerMenu(meta);
+                else {
+                    // Host without SDK helpers: dispatch directly so
+                    // the host can pick it up.
+                    try {
+                        document.dispatchEvent(new CustomEvent('egodact:addon:register', {
+                            detail: { type: 'hamburger', meta: meta }
+                        }));
+                    } catch (err) {}
+                }
             }
             return meta.id;
         },
         onOpen: function (id, cb) {
-            if (client() && typeof client().onOpen === 'function') {
-                client().onOpen(id, cb);
-            }
+            const c = client();
+            if (c && typeof c.onOpen === 'function') c.onOpen(id, cb);
         }
     };
+
+    // Friendly aliases on the ui namespace.
+    ui.showInDropdown = hamburger.add;
+    ui.onDropdownOpen = hamburger.onOpen;
 
     // ============================================================
     // EXPORT

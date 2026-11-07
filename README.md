@@ -1,6 +1,6 @@
 # Egodact Addon: Learning Mode
 
-Adds study/productivity tools to the **host's hamburger menu**. The hamburger only appears when at least one addon registers a menu item (`EgodactAddonLib.hamburger.add`).
+Adds study/productivity tools to the **host's hamburger menu**. The hamburger only appears when at least one addon registers an item through `EgodactAddonLib.hamburger.add(...)`. Plain `registerMenu()` entries stay in the Addons library.
 
 ## Features
 - **Eisenhower matrix** – clean 4-quadrant task view (Do / Plan / Delegeer / Laat vallen) with counts, add and delete.
