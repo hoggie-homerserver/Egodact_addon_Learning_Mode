@@ -7,7 +7,24 @@
     const client = window.EgodactAddonClient;
     if (!client) { console.warn('EgodactAddonClient missing'); return; }
 
-    const store = (client.storage) ? client.storage('egodact-learning-mode') : { get: (k, f) => f, set: () => {}, remove: () => {} };
+    // The client SDK in this build does not expose storage(), so use
+    // localStorage directly with a namespaced prefix.
+    const STORE_PREFIX = 'egodact_lm_';
+    const store = {
+        get(key, fallback) {
+            try {
+                const raw = localStorage.getItem(STORE_PREFIX + key);
+                return raw === null ? fallback : JSON.parse(raw);
+            } catch (err) { return fallback; }
+        },
+        set(key, value) {
+            try { localStorage.setItem(STORE_PREFIX + key, JSON.stringify(value)); return true; }
+            catch (err) { return false; }
+        },
+        remove(key) {
+            try { localStorage.removeItem(STORE_PREFIX + key); } catch (err) {}
+        }
+    };
 
     client.registerAddon({
         id: 'egodact-learning-mode',
@@ -192,10 +209,10 @@
         const map = { hideTijd: 'egodact-tijd-knop', hideBeta: 'egodact-beta-features-knop', hideAddons: 'egodact-addons-knop' };
         Object.keys(map).forEach(k => {
             const el = document.getElementById(map[k]);
-            if (el) el.style.display = store.get(k, false) ? 'none' : '';
+            if (el) el.style.setProperty('display', store.get(k, false) ? 'none' : '', 'important');
         });
         document.querySelectorAll('[data-egodact-addon-btn="1"]').forEach(el => {
-            el.style.display = store.get('hideAddonButtons', false) ? 'none' : '';
+            el.style.setProperty('display', store.get('hideAddonButtons', false) ? 'none' : '', 'important');
         });
     }
     // Re-apply because the host may re-render its header.
