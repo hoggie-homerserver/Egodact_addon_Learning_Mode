@@ -248,17 +248,22 @@
         // open first tab
         setTimeout(() => { tabBar.querySelector('button').click(); }, 0);
 
-        client.openModal('Learning Mode', body, { breedte:'min(640px, calc(100vw - 32px))' });
+        client.openModal('Learning Mode', '', {
+            breedte: 'min(640px, calc(100vw - 32px))',
+            onOpen: function (backdrop, modal) {
+                const be = modal.querySelector('#egodact-modal-body');
+                if (be) be.appendChild(body);
+            }
+        });
     }
 
-    client.registerButton({
+    client.registerMenu({
         addonId: 'egodact-learning-mode',
-        id: 'lm-menu-btn',
+        id: 'lm-menu',
         title: 'Learning Mode',
-        icon: '🎓',
-        position: 'header'
+        icon: ''
     });
-    client.onOpen('lm-menu-btn', openLearningMenu);
+    client.onOpen('lm-menu', openLearningMenu);
 
     // apply compact on load
     setTimeout(applyCompact, 500);
