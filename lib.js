@@ -680,8 +680,48 @@
     ui.onDropdownOpen = hamburger.onOpen;
 
     // ============================================================
-    // EXPORT
+    // THEME CHANGE LISTENER
     // ============================================================
+    theme.onChange = function (cb) {
+        const c = client();
+        if (c && typeof c.onThemeChange === 'function') c.onThemeChange(cb);
+    };
+
+    // ============================================================
+    // CHALLENGES HELPER
+    // ============================================================
+    const challenges = {
+        list: function (force) {
+            const c = client();
+            return c && typeof c.getChallenges === 'function'
+                ? c.getChallenges(force === true)
+                : Promise.resolve([]);
+        },
+        onChange: function (cb) {
+            const c = client();
+            if (c && typeof c.onChallengesChanged === 'function') c.onChallengesChanged(cb);
+        }
+    };
+
+    // ============================================================
+    // TOPBAR SLOT HELPER
+    // ============================================================
+    const topbar = {
+        add: function (meta) {
+            meta = meta || {};
+            const c = client();
+            if (c && typeof c.registerButton === 'function') {
+                c.registerButton(Object.assign({}, meta, {
+                    position: 'header',
+                    slot: meta.slot || 'actions',
+                    order: (typeof meta.order === 'number') ? meta.order : null
+                }));
+            }
+            return meta.id;
+        }
+    };
+
+
     const lib = {
         version: VERSION,
         theme: theme,
@@ -691,7 +731,9 @@
         game: game,
         data: data,
         layout: layout,
-        hamburger: hamburger
+        hamburger: hamburger,
+        challenges: challenges,
+        topbar: topbar
     };
 
     if (typeof module !== 'undefined' && module.exports) module.exports = lib;

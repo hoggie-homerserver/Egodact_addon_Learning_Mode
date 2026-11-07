@@ -6,9 +6,10 @@
 
     const client = window.EgodactAddonClient;
     if (!client) { console.warn('EgodactAddonClient missing'); return; }
+    const L = window.EgodactAddonLib || {};
 
-    // The client SDK in this build does not expose storage(), so use
-    // localStorage directly with a namespaced prefix.
+    // Keep our own namespaced localStorage store (egodact_lm_*) so
+    // existing user data is preserved.
     const STORE_PREFIX = 'egodact_lm_';
     const store = {
         get(key, fallback) {
@@ -51,7 +52,7 @@
     }
 
     // ------------------------------------------------------------
-    // Clean Eisenhower matrix
+    // Clean Eisenhower matrix (with drag & drop)
     // ------------------------------------------------------------
     const QUADS = [
         { key: 'do', title: 'Do', sub: 'Urgent + belangrijk', color: '#ef5350' },
@@ -60,6 +61,14 @@
         { key: 'drop', title: 'Laat vallen', sub: 'Geen van beide', color: '#78909c' }
     ];
 
+    function getMatrixItems(key) {
+        const arr = store.get('matrix_' + key, []);
+        return Array.isArray(arr) ? arr.map(x => (typeof x === 'string' ? x : (x && x.text) || '')).filter(Boolean) : [];
+    }
+    function setMatrixItems(key, arr) {
+        store.set('matrix_' + key, arr);
+    }
+
     function renderMatrix() {
         const grid = document.createElement('div');
         grid.style.cssText = 'display:grid; grid-template-columns:1fr 1fr; gap:10px;';
@@ -67,6 +76,7 @@
         QUADS.forEach(q => {
             const card = document.createElement('div');
             card.style.cssText = 'display:flex; flex-direction:column; gap:8px; padding:12px; border-radius:8px; background:var(--egd-veld); border:1px solid var(--egd-rand); border-top:3px solid ' + q.color + '; min-height:150px;';
+            card.setAttribute('data-lm-quad', q.key);
 
             const head = document.createElement('div');
             head.style.cssText = 'display:flex; align-items:baseline; justify-content:space-between; gap:8px;';
@@ -78,23 +88,25 @@
             card.appendChild(head);
 
             const list = document.createElement('div');
-            list.style.cssText = 'display:flex; flex-direction:column; gap:5px; flex:1;';
+            list.style.cssText = 'display:flex; flex-direction:column; gap:5px; flex:1; min-height:40px;';
+            list.setAttribute('data-lm-list', q.key);
             card.appendChild(list);
 
             function renderItems() {
                 list.innerHTML = '';
-                const items = store.get('matrix_' + q.key, []);
+                const items = getMatrixItems(q.key);
                 count.textContent = items.length;
                 if (!items.length) {
                     const empty = document.createElement('div');
-                    empty.textContent = 'Geen taken';
+                    empty.textContent = 'Sleep hier een taak of typ er een';
                     empty.style.cssText = 'font-size:11px; color:var(--egd-tekst-zacht); padding:6px 0;';
                     list.appendChild(empty);
                     return;
                 }
                 items.forEach((it, idx) => {
                     const row = document.createElement('div');
-                    row.style.cssText = 'display:flex; align-items:center; gap:7px; font-size:12px; padding:5px 7px; background:var(--egd-modal); border-radius:5px;';
+                    row.draggable = true;
+                    row.style.cssText = 'display:flex; align-items:center; gap:7px; font-size:12px; padding:5px 7px; background:var(--egd-modal); border-radius:5px; cursor:grab; border:1px solid transparent;';
                     const dot = document.createElement('span');
                     dot.style.cssText = 'width:6px; height:6px; border-radius:50%; background:' + q.color + '; flex-shrink:0;';
                     const span = document.createElement('span');
@@ -103,19 +115,61 @@
                     const del = document.createElement('button');
                     del.textContent = '×';
                     del.style.cssText = 'border:none; background:transparent; color:var(--egd-tekst-zacht); cursor:pointer; font-size:15px; line-height:1; padding:0 2px;';
-                    del.addEventListener('mouseenter', () => { del.style.color = 'var(--egd-gevaar)'; });
-                    del.addEventListener('mouseleave', () => { del.style.color = 'var(--egd-tekst-zacht)'; });
-                    del.addEventListener('click', () => {
-                        const arr = store.get('matrix_' + q.key, []);
+                    del.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const arr = getMatrixItems(q.key);
                         arr.splice(idx, 1);
-                        store.set('matrix_' + q.key, arr);
+                        setMatrixItems(q.key, arr);
                         renderItems();
                     });
                     row.append(dot, span, del);
+
+                    row.addEventListener('dragstart', (e) => {
+                        e.dataTransfer.setData('text/plain', JSON.stringify({ from: q.key, index: idx }));
+                        e.dataTransfer.effectAllowed = 'move';
+                        row.style.opacity = '0.5';
+                    });
+                    row.addEventListener('dragend', () => { row.style.opacity = '1'; });
+
                     list.appendChild(row);
                 });
             }
             renderItems();
+
+            // Drop target.
+            list.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                list.style.background = 'rgba(255,255,255,.04)';
+            });
+            list.addEventListener('dragleave', () => { list.style.background = ''; });
+            list.addEventListener('drop', (e) => {
+                e.preventDefault();
+                list.style.background = '';
+                let payload = null;
+                try { payload = JSON.parse(e.dataTransfer.getData('text/plain') || 'null'); } catch (err) {}
+                if (!payload || payload.from === q.key) {
+                    if (payload && payload.from === q.key) return;
+                }
+                if (!payload) return;
+
+                const srcArr = getMatrixItems(payload.from);
+                if (payload.index < 0 || payload.index >= srcArr.length) return;
+                const moved = srcArr.splice(payload.index, 1)[0];
+                if (moved == null) return;
+                setMatrixItems(payload.from, srcArr);
+
+                // Re-render source quadrant if visible.
+                const srcList = grid.querySelector('[data-lm-list="' + payload.from + '"]');
+                if (srcList) {
+                    // trigger its renderItems by re-rendering whole matrix
+                }
+
+                const tgtArr = getMatrixItems(q.key);
+                tgtArr.push(moved);
+                setMatrixItems(q.key, tgtArr);
+
+                renderMatrix();
+            });
 
             const addRow = document.createElement('div');
             addRow.style.cssText = 'display:flex; gap:6px;';
@@ -129,11 +183,11 @@
             function add() {
                 const v = input.value.trim();
                 if (!v) return;
-                const arr = store.get('matrix_' + q.key, []);
+                const arr = getMatrixItems(q.key);
                 arr.push(v);
-                store.set('matrix_' + q.key, arr);
+                setMatrixItems(q.key, arr);
                 input.value = '';
-                renderItems();
+                renderMatrix();
             }
             addBtn.addEventListener('click', add);
             input.addEventListener('keydown', e => { if (e.key === 'Enter') add(); });
@@ -217,34 +271,345 @@
     }
 
     // ------------------------------------------------------------
-    // Floating notepad
+    // Notepad v2: tabs, pin, resize, markdown-ish, challenge link
     // ------------------------------------------------------------
+    const NOTEPAD_KEY = 'notepad_v2';
+    const NOTEPAD_GEOM_KEY = 'notepad_geom';
+
+    function loadNotepadState() {
+        const s = store.get(NOTEPAD_KEY, null);
+        if (s && Array.isArray(s.notes) && s.notes.length) return s;
+        return {
+            notes: [{ id: 'n1', title: 'Notitie 1', body: '', pinned: false, challengeId: null }],
+            activeId: 'n1'
+        };
+    }
+    function saveNotepadState(s) {
+        store.set(NOTEPAD_KEY, { notes: s.notes, activeId: s.activeId });
+    }
+
+    function renderMarkdown(text) {
+        const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const lines = String(text || '').split('\n');
+        const out = [];
+        let inList = false, inCheck = false;
+        lines.forEach((raw) => {
+            const line = raw;
+            if (/^#{1,3}\s/.test(line)) {
+                if (inList) { out.push('</ul>'); inList = false; }
+                if (inCheck) { out.push('</ul>'); inCheck = false; }
+                const lvl = line.match(/^#+/)[0].length;
+                out.push('<h' + (lvl + 2) + ' style="margin:6px 0 2px;font-size:' + (16 - lvl) + 'px;">' + inline(line.replace(/^#{1,3}\s/, '')) + '</h' + (lvl + 2) + '>');
+                return;
+            }
+            const cb = line.match(/^-\s*\[([ xX])\]\s*(.*)$/);
+            if (cb) {
+                if (inList) { out.push('</ul>'); inList = false; }
+                if (!inCheck) { out.push('<ul style="list-style:none;padding-left:0;margin:4px 0;">'); inCheck = true; }
+                const checked = cb[1].toLowerCase() === 'x';
+                const id = 'cb_' + Math.random().toString(36).slice(2);
+                out.push('<li style="display:flex;align-items:flex-start;gap:6px;margin:2px 0;"><input type="checkbox" ' + (checked ? 'checked' : '') + ' data-cb="' + id + '" data-text="' + esc(cb[2]) + '"><span style="' + (checked ? 'text-decoration:line-through;color:var(--egd-tekst-zacht);' : '') + '">' + inline(cb[2]) + '</span></li>');
+                return;
+            }
+            const bullet = line.match(/^[-*]\s+(.*)$/);
+            if (bullet) {
+                if (inCheck) { out.push('</ul>'); inCheck = false; }
+                if (!inList) { out.push('<ul style="padding-left:18px;margin:4px 0;">'); inList = true; }
+                out.push('<li>' + inline(bullet[1]) + '</li>');
+                return;
+            }
+            if (line.trim() === '') {
+                if (inList) { out.push('</ul>'); inList = false; }
+                if (inCheck) { out.push('</ul>'); inCheck = false; }
+                out.push('<div style="height:6px;"></div>');
+                return;
+            }
+            if (inList) { out.push('</ul>'); inList = false; }
+            if (inCheck) { out.push('</ul>'); inCheck = false; }
+            out.push('<p style="margin:2px 0;">' + inline(line) + '</p>');
+        });
+        if (inList) out.push('</ul>');
+        if (inCheck) out.push('</ul>');
+        function inline(s) {
+            return esc(s)
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.+?)\*/g, '<em>$1</em>')
+                .replace(/`(.+?)`/g, '<code style="background:var(--egd-veld);padding:1px 4px;border-radius:3px;">$1</code>');
+        }
+        return out.join('');
+    }
+
     let notepadEl = null;
-    function openNotepad() {
+    let notepadState = null;
+    let notepadPreview = false;
+
+    function openNotepad(linkChallengeId) {
         if (notepadEl) { notepadEl.style.display = 'flex'; return; }
+
+        notepadState = loadNotepadState();
+        if (linkChallengeId) {
+            // Maak een nieuwe notitie gekoppeld aan deze challenge.
+            const id = 'n' + Date.now();
+            notepadState.notes.unshift({ id, title: 'Notitie', body: '', pinned: false, challengeId: linkChallengeId });
+            notepadState.activeId = id;
+            saveNotepadState(notepadState);
+        }
+
+        const geom = store.get(NOTEPAD_GEOM_KEY, null) || { w: 320, h: 260, x: null, y: null };
+
         notepadEl = document.createElement('div');
         Object.assign(notepadEl.style, {
-            position: 'fixed', right: '16px', bottom: '16px', width: '280px', height: '220px',
-            background: 'var(--egd-modal)', color: 'var(--egd-tekst)', border: '1px solid var(--egd-rand)',
-            borderRadius: '8px', boxShadow: 'var(--egd-schaduw)', zIndex: '2147483000',
-            display: 'flex', flexDirection: 'column', overflow: 'hidden'
+            position: 'fixed',
+            width: geom.w + 'px',
+            height: geom.h + 'px',
+            background: 'var(--egd-modal)',
+            color: 'var(--egd-tekst)',
+            border: '1px solid var(--egd-rand)',
+            borderRadius: '8px',
+            boxShadow: 'var(--egd-schaduw)',
+            zIndex: '2147483000',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            resize: 'none'
         });
+        if (geom.x != null) { notepadEl.style.left = geom.x + 'px'; notepadEl.style.right = 'auto'; }
+        else { notepadEl.style.right = '16px'; }
+        if (geom.y != null) { notepadEl.style.top = geom.y + 'px'; notepadEl.style.bottom = 'auto'; }
+        else { notepadEl.style.bottom = '16px'; }
+
+        // Header.
         const bar = document.createElement('div');
-        bar.style.cssText = 'padding:6px 10px; background:var(--egd-veld); cursor:move; display:flex; justify-content:space-between; align-items:center; font-size:12px; font-weight:bold;';
-        bar.textContent = 'Notepad';
+        bar.style.cssText = 'padding:6px 10px; background:var(--egd-veld); cursor:move; display:flex; justify-content:space-between; align-items:center; font-size:12px; font-weight:bold; gap:6px; flex-shrink:0;';
+        const barTitle = document.createElement('span');
+        barTitle.textContent = 'Notepad';
+        barTitle.style.flex = '1';
+        const pinBtn = document.createElement('button');
+        pinBtn.textContent = '📌';
+        pinBtn.title = 'Altijd bovenop';
+        pinBtn.style.cssText = 'border:none;background:transparent;color:var(--egd-tekst);cursor:pointer;font-size:14px;';
         const close = document.createElement('button');
         close.textContent = '×';
         close.style.cssText = 'border:none;background:transparent;color:var(--egd-tekst);cursor:pointer;font-size:16px;';
         close.addEventListener('click', () => { notepadEl.style.display = 'none'; });
-        bar.appendChild(close);
+        bar.append(barTitle, pinBtn, close);
+
+        // Challenge selector row.
+        const linkRow = document.createElement('div');
+        linkRow.style.cssText = 'padding:4px 8px; background:var(--egd-veld); border-bottom:1px solid var(--egd-rand); display:flex; align-items:center; gap:6px; flex-shrink:0;';
+        const linkLabel = document.createElement('span');
+        linkLabel.textContent = 'Challenge:';
+        linkLabel.style.cssText = 'font-size:11px; color:var(--egd-tekst-zacht);';
+        const linkSelect = document.createElement('select');
+        linkSelect.style.cssText = 'flex:1; font-size:11px; padding:2px 4px; border-radius:4px; background:var(--egd-modal); color:var(--egd-tekst); border:1px solid var(--egd-rand);';
+        linkRow.append(linkLabel, linkSelect);
+
+        // Tabs.
+        const tabs = document.createElement('div');
+        tabs.style.cssText = 'display:flex; align-items:center; gap:2px; padding:4px 6px; background:var(--egd-veld); border-bottom:1px solid var(--egd-rand); overflow-x:auto; flex-shrink:0;';
+
+        // Toolbar.
+        const toolbar = document.createElement('div');
+        toolbar.style.cssText = 'display:flex; align-items:center; gap:2px; padding:4px 6px; border-bottom:1px solid var(--egd-rand); flex-shrink:0;';
+        function tbBtn(label, title, fn) {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.textContent = label;
+            b.title = title;
+            b.style.cssText = 'border:none;background:transparent;color:var(--egd-tekst);cursor:pointer;padding:2px 6px;border-radius:4px;font-size:12px;font-weight:bold;';
+            b.addEventListener('click', fn);
+            return b;
+        }
+
+        const body = document.createElement('div');
+        body.style.cssText = 'flex:1; min-height:0; display:flex; flex-direction:column;';
+
         const ta = document.createElement('textarea');
-        ta.value = store.get('notepad', '');
         ta.style.cssText = 'flex:1; border:none; resize:none; padding:8px; background:var(--egd-modal); color:var(--egd-tekst); font:inherit; font-size:13px;';
-        ta.addEventListener('input', () => store.set('notepad', ta.value));
-        notepadEl.append(bar, ta);
+
+        const preview = document.createElement('div');
+        preview.style.cssText = 'flex:1; overflow:auto; padding:8px; font-size:13px; line-height:1.45;';
+
+        body.appendChild(ta);
+
+        // Resize handle.
+        const handle = document.createElement('div');
+        handle.style.cssText = 'position:absolute; right:0; bottom:0; width:14px; height:14px; cursor:nwse-resize; background:linear-gradient(135deg, transparent 50%, var(--egd-tekst-zacht) 50%);';
+
+        notepadEl.append(bar, linkRow, tabs, toolbar, body, handle);
         document.body.appendChild(notepadEl);
+
+        // State helpers.
+        function activeNote() {
+            return notepadState.notes.find(n => n.id === notepadState.activeId) || notepadState.notes[0];
+        }
+
+        function loadChallengesIntoSelect() {
+            linkSelect.innerHTML = '<option value="">(geen)</option>';
+            const c = client;
+            const challenges = (typeof c.getChallenges === 'function') ? c.getChallenges(false) : Promise.resolve([]);
+            challenges.then(list => {
+                (list || []).forEach(ch => {
+                    const opt = document.createElement('option');
+                    opt.value = ch.id || ch.name;
+                    opt.textContent = ch.name || ch.id;
+                    linkSelect.appendChild(opt);
+                });
+                const n = activeNote();
+                if (n && n.challengeId) linkSelect.value = n.challengeId;
+            }).catch(() => {});
+        }
+        loadChallengesIntoSelect();
+
+        function renderTabs() {
+            tabs.innerHTML = '';
+            const sorted = [...notepadState.notes].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
+            sorted.forEach(n => {
+                const t = document.createElement('button');
+                t.type = 'button';
+                t.style.cssText = 'border:none; background:' + (n.id === notepadState.activeId ? 'var(--egd-modal)' : 'transparent') + '; color:var(--egd-tekst); padding:3px 8px; border-radius:4px; cursor:pointer; font-size:11px; white-space:nowrap; display:flex; align-items:center; gap:4px;';
+                const pin = document.createElement('span');
+                pin.textContent = n.pinned ? '📌' : '';
+                pin.style.fontSize = '9px';
+                const lbl = document.createElement('span');
+                lbl.textContent = n.title || 'Notitie';
+                t.append(pin, lbl);
+                lbl.addEventListener('dblclick', (e) => {
+                    e.stopPropagation();
+                    const nv = prompt('Naam van de notitie:', n.title || '');
+                    if (nv != null && nv.trim()) { n.title = nv.trim(); saveNotepadState(notepadState); renderTabs(); }
+                });
+                t.addEventListener('click', () => {
+                    // save current
+                    const cur = activeNote();
+                    if (cur) cur.body = ta.value;
+                    notepadState.activeId = n.id;
+                    saveNotepadState(notepadState);
+                    renderTabs();
+                    loadActive();
+                });
+                // close tab
+                const x = document.createElement('span');
+                x.textContent = '×';
+                x.style.cssText = 'margin-left:4px; opacity:.6; cursor:pointer;';
+                x.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (notepadState.notes.length <= 1) return;
+                    notepadState.notes = notepadState.notes.filter(xn => xn.id !== n.id);
+                    if (notepadState.activeId === n.id) notepadState.activeId = notepadState.notes[0].id;
+                    saveNotepadState(notepadState);
+                    renderTabs();
+                    loadActive();
+                });
+                t.appendChild(x);
+                tabs.appendChild(t);
+            });
+            const addTab = document.createElement('button');
+            addTab.type = 'button';
+            addTab.textContent = '+';
+            addTab.title = 'Nieuwe notitie';
+            addTab.style.cssText = 'border:none; background:transparent; color:var(--egd-tekst); padding:3px 8px; cursor:pointer; font-size:14px; font-weight:bold;';
+            addTab.addEventListener('click', () => {
+                const cur = activeNote();
+                if (cur) cur.body = ta.value;
+                const id = 'n' + Date.now();
+                notepadState.notes.push({ id, title: 'Notitie ' + (notepadState.notes.length + 1), body: '', pinned: false, challengeId: null });
+                notepadState.activeId = id;
+                saveNotepadState(notepadState);
+                renderTabs();
+                loadActive();
+            });
+            tabs.appendChild(addTab);
+        }
+
+        function loadActive() {
+            const n = activeNote();
+            if (!n) return;
+            ta.value = n.body || '';
+            // title editable via double-click on tab? keep simple
+            linkSelect.value = n.challengeId || '';
+            if (notepadPreview) renderPreview();
+        }
+
+        function saveActive() {
+            const n = activeNote();
+            if (n) { n.body = ta.value; n.challengeId = linkSelect.value || null; }
+            saveNotepadState(notepadState);
+        }
+
+        ta.addEventListener('input', () => {
+            saveActive();
+        });
+        linkSelect.addEventListener('change', () => { saveActive(); });
+
+        // Toolbar actions.
+        toolbar.appendChild(tbBtn('B', 'Vet', () => wrapSelection('**', '**')));
+        toolbar.appendChild(tbBtn('I', 'Cursief', () => wrapSelection('*', '*')));
+        toolbar.appendChild(tbBtn('•', 'Lijst', () => insertAtCursor('- ')));
+        toolbar.appendChild(tbBtn('☐', 'Checkbox', () => insertAtCursor('- [ ] ')));
+        const previewBtn = tbBtn('👁', 'Voorbeeld', () => {
+            notepadPreview = !notepadPreview;
+            if (notepadPreview) {
+                saveActive();
+                body.innerHTML = '';
+                body.appendChild(preview);
+                preview.innerHTML = renderMarkdown(ta.value);
+                // checkbox toggles
+                preview.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                    cb.addEventListener('change', () => {
+                        const txt = cb.getAttribute('data-text') || '';
+                        const newState = cb.checked ? 'x' : ' ';
+                        // Replace first matching "- [ ] txt" or "- [x] txt"
+                        const re = new RegExp('-\\s*\\[[ xX]\\]\\s*' + txt.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+                        ta.value = ta.value.replace(re, '- [' + newState + '] ' + txt);
+                        saveActive();
+                    });
+                });
+            } else {
+                body.innerHTML = '';
+                body.appendChild(ta);
+                ta.value = activeNote().body || '';
+            }
+        });
+        toolbar.appendChild(previewBtn);
+
+        function wrapSelection(before, after) {
+            const start = ta.selectionStart, end = ta.selectionEnd;
+            const sel = ta.value.slice(start, end);
+            const next = ta.value.slice(0, start) + before + sel + after + ta.value.slice(end);
+            ta.value = next;
+            ta.selectionStart = start + before.length;
+            ta.selectionEnd = end + before.length;
+            ta.focus();
+            saveActive();
+        }
+        function insertAtCursor(txt) {
+            const start = ta.selectionStart;
+            const next = ta.value.slice(0, start) + txt + ta.value.slice(start);
+            ta.value = next;
+            ta.selectionStart = ta.selectionEnd = start + txt.length;
+            ta.focus();
+            saveActive();
+        }
+
+        // Pin (always on top).
+        let pinned = !!store.get('notepad_pinned', false);
+        function applyPin() {
+            notepadEl.style.zIndex = pinned ? '2147483600' : '2147483000';
+            pinBtn.style.color = pinned ? 'var(--egd-accent)' : 'var(--egd-tekst)';
+        }
+        pinBtn.addEventListener('click', () => { pinned = !pinned; store.set('notepad_pinned', pinned); applyPin(); });
+        applyPin();
+
+        // Drag.
         let dragging = false, ox = 0, oy = 0;
-        bar.addEventListener('mousedown', e => { dragging = true; ox = e.clientX - notepadEl.offsetLeft; oy = e.clientY - notepadEl.offsetTop; });
+        bar.addEventListener('mousedown', e => {
+            if (e.target === close || e.target === pinBtn) return;
+            dragging = true;
+            ox = e.clientX - notepadEl.offsetLeft;
+            oy = e.clientY - notepadEl.offsetTop;
+            e.preventDefault();
+        });
         document.addEventListener('mousemove', e => {
             if (!dragging) return;
             notepadEl.style.left = (e.clientX - ox) + 'px';
@@ -253,10 +618,50 @@
             notepadEl.style.bottom = 'auto';
         });
         document.addEventListener('mouseup', () => { dragging = false; });
+
+        // Resize.
+        let resizing = false, rw = 0, rh = 0, rx = 0, ry = 0;
+        handle.addEventListener('mousedown', e => {
+            resizing = true;
+            rw = notepadEl.offsetWidth; rh = notepadEl.offsetHeight;
+            rx = e.clientX; ry = e.clientY;
+            e.preventDefault(); e.stopPropagation();
+        });
+        document.addEventListener('mousemove', e => {
+            if (!resizing) return;
+            const nw = Math.max(220, rw + (e.clientX - rx));
+            const nh = Math.max(160, rh + (e.clientY - ry));
+            notepadEl.style.width = nw + 'px';
+            notepadEl.style.height = nh + 'px';
+        });
+        document.addEventListener('mouseup', () => {
+            if (!resizing) return;
+            resizing = false;
+            store.set(NOTEPAD_GEOM_KEY, {
+                w: notepadEl.offsetWidth,
+                h: notepadEl.offsetHeight,
+                x: parseInt(notepadEl.style.left) || null,
+                y: parseInt(notepadEl.style.top) || null
+            });
+        });
+
+        // Persist geometry on drag end too.
+        document.addEventListener('mouseup', () => {
+            if (!dragging) return;
+            store.set(NOTEPAD_GEOM_KEY, {
+                w: notepadEl.offsetWidth,
+                h: notepadEl.offsetHeight,
+                x: parseInt(notepadEl.style.left) || null,
+                y: parseInt(notepadEl.style.top) || null
+            });
+        });
+
+        renderTabs();
+        loadActive();
     }
 
     // ------------------------------------------------------------
-    // Register features in the host's hamburger menu
+    // Hamburger registration
     // ------------------------------------------------------------
     const addonId = 'egodact-learning-mode';
 
@@ -293,16 +698,16 @@
                 title: 'Notepad',
                 order: 30,
                 icon: ICON('<path d="M5 4h11l3 3v13H5z"/><path d="M8 9h8"/><path d="M8 13h8"/><path d="M8 17h5"/>'),
-                run: openNotepad
+                run: () => openNotepad()
             }
         ];
 
-        const L = window.EgodactAddonLib;
+        const helper = (L && L.hamburger) ? L.hamburger : null;
         items.forEach(it => {
             const meta = { addonId: addonId, id: it.id, title: it.title, icon: it.icon, order: it.order };
-            if (L && L.hamburger) {
-                L.hamburger.add(meta);
-                L.hamburger.onOpen(it.id, it.run);
+            if (helper) {
+                helper.add(meta);
+                helper.onOpen(it.id, it.run);
             } else if (typeof client.registerHamburger === 'function') {
                 client.registerHamburger(meta);
                 client.onOpen(it.id, it.run);
@@ -312,7 +717,11 @@
             }
         });
 
-        // Apply compact settings on load and keep them applied.
+        // Theme listener: re-apply compact on theme change (no 1.5s needed).
+        if (typeof client.onThemeChange === 'function') {
+            client.onThemeChange(() => applyCompact());
+        }
+
         applyCompact();
         setInterval(applyCompact, 1500);
     }
