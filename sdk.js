@@ -50,6 +50,8 @@
         }
     }
 
+    const listeners = Object.create(null);
+
     document.addEventListener('egodact:challenges:changed', function (event) {
         const detail = (event && event.detail) || {};
         let list = [];

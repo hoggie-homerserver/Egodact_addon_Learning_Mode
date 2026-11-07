@@ -728,5 +728,16 @@
 
         applyCompact();
         setInterval(applyCompact, 1500);
+
+        // Re-register after a short delay in case the host wasn't ready.
+        setTimeout(function () {
+            items.forEach(function (it) {
+                const meta = { addonId: addonId, id: it.id, title: it.title, icon: it.icon, order: it.order };
+                try {
+                    if (typeof client.registerHamburger === 'function') client.registerHamburger(meta);
+                    else client.registerMenu(meta);
+                } catch (e) {}
+            });
+        }, 1200);
     }
 })();
