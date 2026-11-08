@@ -35,7 +35,8 @@
         name: 'Learning Mode',
         version: '0.3.0',
         description: 'Eisenhower matrix, compact mode and floating notepad.',
-        author: 'MaxiTaxi'
+        author: 'MaxiTaxi',
+        source: 'https://github.com/hoggie-homerserver/Egodact_addon_Learning_Mode'
     });
 
     // ------------------------------------------------------------
