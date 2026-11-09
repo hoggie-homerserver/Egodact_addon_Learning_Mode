@@ -730,11 +730,16 @@
             const c = client();
             const id = meta.id;
             if (c && typeof c.registerSidebarPanel === 'function') {
-                c.registerSidebarPanel({ addonId: meta.addonId, id: id, title: meta.title, icon: meta.icon, order: meta.order, render: meta.render });
+                // Alleen strings/nummers: Chromium laat geen functies door
+                // CustomEvent-detail tussen extensies heen.
+                c.registerSidebarPanel({ addonId: meta.addonId, id: id, title: meta.title, icon: meta.icon, order: meta.order });
             } else {
                 try {
                     document.dispatchEvent(new CustomEvent('egodact:addon:register', {
-                        detail: { type: 'sidebar-panel', meta: meta }
+                        detail: {
+                            type: 'sidebar-panel',
+                            meta: { addonId: meta.addonId, id: id, title: meta.title, icon: meta.icon, order: meta.order }
+                        }
                     }));
                 } catch (err) {}
             }
