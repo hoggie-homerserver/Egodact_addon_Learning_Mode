@@ -738,6 +738,17 @@
                     }));
                 } catch (err) {}
             }
+            // De host stuurt een open-event met de container zodra het paneel
+            // getekend moet worden. Zo blijft de render-functie in de addon-
+            // wereld (belangrijk in Chromium).
+            if (c && typeof c.onOpen === 'function' && typeof meta.render === 'function') {
+                c.onOpen(id, function (detail) {
+                    const container = detail && detail.container;
+                    if (container) {
+                        try { meta.render(container); } catch (err) { console.error(err); }
+                    }
+                });
+            }
             return id;
         },
         remove: function (id) {
