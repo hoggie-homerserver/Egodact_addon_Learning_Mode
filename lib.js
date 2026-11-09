@@ -743,7 +743,14 @@
             // wereld (belangrijk in Chromium).
             if (c && typeof c.onOpen === 'function' && typeof meta.render === 'function') {
                 c.onOpen(id, function (detail) {
-                    const container = detail && detail.container;
+                    detail = detail || {};
+                    let container = detail.container || null;
+                    if (!container && detail.containerId) {
+                        container = document.getElementById(detail.containerId);
+                    }
+                    if (!container) {
+                        container = document.querySelector('[data-egodact-addon-panel="' + String(id) + '"]');
+                    }
                     if (container) {
                         try { meta.render(container); } catch (err) { console.error(err); }
                     }
