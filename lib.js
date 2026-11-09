@@ -721,6 +721,59 @@
         }
     };
 
+    // ============================================================
+    // SIDEBAR PANEL HELPER
+    // ============================================================
+    const sidebar = {
+        add: function (meta) {
+            meta = meta || {};
+            const c = client();
+            if (c && typeof c.registerSidebarPanel === 'function') {
+                c.registerSidebarPanel(meta);
+            } else {
+                try {
+                    document.dispatchEvent(new CustomEvent('egodact:addon:register', {
+                        detail: { type: 'sidebar-panel', meta: meta }
+                    }));
+                } catch (err) {}
+            }
+            return meta.id;
+        },
+        remove: function (id) {
+            // Panels persist for the session; removal requires a reload.
+        }
+    };
+
+    // ============================================================
+    // SCHEDULER HELPER
+    // ============================================================
+    const scheduler = {
+        schedule: function (meta) {
+            meta = meta || {};
+            const c = client();
+            if (c && typeof c.schedule === 'function') c.schedule(meta);
+            else {
+                try {
+                    document.dispatchEvent(new CustomEvent('egodact:addon:register', {
+                        detail: { type: 'schedule', meta: meta }
+                    }));
+                } catch (err) {}
+            }
+            return meta.id;
+        },
+        cancel: function (id) {
+            const c = client();
+            if (c && typeof c.cancelSchedule === 'function') c.cancelSchedule(id);
+            else {
+                try {
+                    document.dispatchEvent(new CustomEvent('egodact:addon:register', {
+                        detail: { type: 'cancel-schedule', meta: { id: id } }
+                    }));
+                } catch (err) {}
+            }
+        }
+    };
+
 
     const lib = {
         version: VERSION,
@@ -733,7 +786,9 @@
         layout: layout,
         hamburger: hamburger,
         challenges: challenges,
-        topbar: topbar
+        topbar: topbar,
+        sidebar: sidebar,
+        scheduler: scheduler
     };
 
     if (typeof module !== 'undefined' && module.exports) module.exports = lib;
