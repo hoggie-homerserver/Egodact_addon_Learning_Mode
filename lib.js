@@ -728,8 +728,9 @@
         add: function (meta) {
             meta = meta || {};
             const c = client();
+            const id = meta.id;
             if (c && typeof c.registerSidebarPanel === 'function') {
-                c.registerSidebarPanel(meta);
+                c.registerSidebarPanel({ addonId: meta.addonId, id: id, title: meta.title, icon: meta.icon, order: meta.order });
             } else {
                 try {
                     document.dispatchEvent(new CustomEvent('egodact:addon:register', {
@@ -737,7 +738,16 @@
                     }));
                 } catch (err) {}
             }
-            return meta.id;
+            // Render into the container when the host calls us back.
+            if (c && typeof c.onOpen === 'function' && typeof meta.render === 'function') {
+                c.onOpen(id, function (detail) {
+                    const container = detail && detail.container;
+                    if (container) {
+                        try { meta.render(container); } catch (err) { console.error(err); }
+                    }
+                });
+            }
+            return id;
         },
         remove: function (id) {
             // Panels persist for the session; removal requires a reload.
