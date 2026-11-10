@@ -199,7 +199,7 @@
         { key: 'hideTijd', label: 'Tijd-knop', desc: 'Verberg de klok/timer-knop' },
         { key: 'hideBeta', label: 'Beta-knop', desc: 'Verberg de beta-knop' },
         { key: 'hideAddons', label: 'Addons-knop', desc: 'Verberg de addons-knop' },
-        { key: 'hideAddonButtons', label: 'Addon-knoppen', desc: 'Verberg alle addon-knoppen in de topbar' },
+        { key: 'hideAddonButtons', label: 'Addon-knoppen', desc: 'Verberg alle addon-knoppen in de topbar en het hamburgermenu' },
         { key: 'compactCards', label: 'Compacte kaarten', desc: 'Minder padding op het bord' }
     ];
 
@@ -250,21 +250,71 @@
         return wrap;
     }
 
+    // ------------------------------------------------------------
+    // Hamburger-dropdown: addon-items verbergen in compact/leermodus
+    // ------------------------------------------------------------
+    let hamObserver = null;
+    let hamWaitObserver = null;
+    function isCompactMenuItem(el) {
+        const id = String(el.getAttribute('data-egd-ham-id') || '');
+        const label = String(el.textContent || '').toLowerCase();
+        return id === 'lm-compact' || label.indexOf('compact') !== -1;
+    }
+    function isShortcutsItem(el) {
+        const id = String(el.getAttribute('data-egd-ham-id') || '');
+        const label = String(el.textContent || '').toLowerCase();
+        return id === 'shortcuts' || label.indexOf('sneltoetsen') !== -1;
+    }
+    function applyHamburgerHiding(hide) {
+        const dropdown = document.getElementById('egodact-hamburger-dropdown');
+        if (!dropdown) {
+            // De host tekent de dropdown later; pak hem zodra hij bestaat.
+            if (!hamWaitObserver && typeof MutationObserver !== 'undefined') {
+                hamWaitObserver = new MutationObserver(function () {
+                    if (document.getElementById('egodact-hamburger-dropdown')) {
+                        try { hamWaitObserver.disconnect(); } catch (e) {}
+                        hamWaitObserver = null;
+                        try { applyHamburgerHiding(!!store.get('hideAddonButtons', false)); } catch (e) {}
+                    }
+                });
+                try { hamWaitObserver.observe(document.body, { childList: true, subtree: true }); } catch (e) {}
+            }
+            return;
+        }
+        dropdown.querySelectorAll('button').forEach(function (el) {
+            const keep = el.getAttribute('data-egd-ham-keep') === '1';
+            const hideThis = hide && !keep && !isCompactMenuItem(el) && !isShortcutsItem(el);
+            el.style.setProperty('display', hideThis ? 'none' : '', 'important');
+        });
+        if (!hamObserver && typeof MutationObserver !== 'undefined') {
+            hamObserver = new MutationObserver(function () {
+                try { applyHamburgerHiding(!!store.get('hideAddonButtons', false)); } catch (e) {}
+            });
+        }
+        if (hamObserver) {
+            try {
+                hamObserver.disconnect();
+                hamObserver.observe(dropdown, { childList: true });
+            } catch (e) {}
+        }
+    }
+
     function applyCompact() {
         const compactOn = !!store.get('compactCards', false);
         document.body.classList.toggle('lm-compact', compactOn);
         try {
-            if (typeof window.egodactSetLearningMode === 'function') window.egodactSetLearningMode(compactOn);
-            else if (typeof client.setLearningMode === 'function') client.setLearningMode(compactOn);
+            if (typeof client.setLearningMode === 'function') client.setLearningMode(compactOn);
         } catch (e) { console.error('learning mode toggle failed', e); }
         const map = { hideTijd: 'egodact-tijd-knop', hideBeta: 'egodact-beta-features-knop', hideAddons: 'egodact-addons-knop' };
         Object.keys(map).forEach(k => {
             const el = document.getElementById(map[k]);
             if (el) el.style.setProperty('display', store.get(k, false) ? 'none' : '', 'important');
         });
+        const hideAddons = !!store.get('hideAddonButtons', false);
         document.querySelectorAll('[data-egodact-addon-btn="1"]').forEach(el => {
-            el.style.setProperty('display', store.get('hideAddonButtons', false) ? 'none' : '', 'important');
+            el.style.setProperty('display', hideAddons ? 'none' : '', 'important');
         });
+        applyHamburgerHiding(hideAddons);
     }
 
     // ------------------------------------------------------------
