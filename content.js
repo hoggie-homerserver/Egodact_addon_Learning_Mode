@@ -253,7 +253,10 @@
     function applyCompact() {
         const compactOn = !!store.get('compactCards', false);
         document.body.classList.toggle('lm-compact', compactOn);
-        try { if (typeof client.setLearningMode === 'function') client.setLearningMode(compactOn); } catch (e) {}
+        try {
+            if (typeof window.egodactSetLearningMode === 'function') window.egodactSetLearningMode(compactOn);
+            else if (typeof client.setLearningMode === 'function') client.setLearningMode(compactOn);
+        } catch (e) { console.error('learning mode toggle failed', e); }
         const map = { hideTijd: 'egodact-tijd-knop', hideBeta: 'egodact-beta-features-knop', hideAddons: 'egodact-addons-knop' };
         Object.keys(map).forEach(k => {
             const el = document.getElementById(map[k]);
