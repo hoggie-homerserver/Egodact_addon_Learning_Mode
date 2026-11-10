@@ -251,7 +251,9 @@
     }
 
     function applyCompact() {
-        document.body.classList.toggle('lm-compact', !!store.get('compactCards', false));
+        const compactOn = !!store.get('compactCards', false);
+        document.body.classList.toggle('lm-compact', compactOn);
+        try { if (typeof client.setLearningMode === 'function') client.setLearningMode(compactOn); } catch (e) {}
         const map = { hideTijd: 'egodact-tijd-knop', hideBeta: 'egodact-beta-features-knop', hideAddons: 'egodact-addons-knop' };
         Object.keys(map).forEach(k => {
             const el = document.getElementById(map[k]);
@@ -715,19 +717,6 @@
                 run: () => openPanel('Compact mode', renderCompact())
             },
             {
-                id: 'lm-learningmode',
-                title: 'Learning mode',
-                order: 25,
-                keepInLearningMode: true,
-                icon: ICON('<path d="M12 3l9 4.5-9 4.5-9-4.5L12 3z"/><path d="M3 12l9 4.5 9-4.5"/><path d="M3 16.5l9 4.5 9-4.5"/>'),
-                run: () => {
-                    const next = !(window.egodactLearningModeEnabled && window.egodactLearningModeEnabled());
-                    if (typeof client.setLearningMode === 'function') client.setLearningMode(next);
-                    else if (typeof window.egodactSetLearningMode === 'function') window.egodactSetLearningMode(next);
-                    ui.toast(next ? 'Learning mode ingeschakeld' : 'Learning mode uitgeschakeld', { type: 'info' });
-                }
-            },
-            {
                 id: 'lm-notepad',
                 title: 'Notepad',
                 order: 30,
@@ -764,7 +753,7 @@
         // Re-register after a short delay in case the host wasn't ready.
         setTimeout(function () {
             items.forEach(function (it) {
-                const meta = { addonId: addonId, id: it.id, title: it.title, icon: it.icon, order: it.order, keepInLearningMode: !!it.keepInLearningMode };
+            const meta = { addonId: addonId, id: it.id, title: it.title, icon: it.icon, order: it.order, keepInLearningMode: !!it.keepInLearningMode };
                 try {
                     if (typeof client.registerHamburger === 'function') client.registerHamburger(meta);
                     else client.registerMenu(meta);
