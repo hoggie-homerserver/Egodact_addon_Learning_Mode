@@ -114,6 +114,7 @@
         registerButton: function (meta) { dispatch('button', meta || {}); },
         registerGame: function (meta) { dispatch('game', meta || {}); },
         registerSidebarPanel: function (meta) { dispatch('sidebar-panel', meta || {}); },
+        setLearningMode: function (v) { dispatch('learning-mode', { enabled: !!v }); },
         registerHamburger: function (meta) { dispatch('hamburger', meta || {}); },
 
         // Opslag (zelfde prefix als de host, zodat data gedeeld is).
