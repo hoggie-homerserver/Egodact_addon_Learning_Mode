@@ -710,6 +710,7 @@
                 id: 'lm-compact',
                 title: 'Compact mode',
                 order: 20,
+                keepInLearningMode: true,
                 icon: ICON('<path d="M4 6h16"/><path d="M4 12h10"/><path d="M4 18h16"/>'),
                 run: () => openPanel('Compact mode', renderCompact())
             },
@@ -724,7 +725,7 @@
 
         const helper = (L && L.hamburger) ? L.hamburger : null;
         items.forEach(it => {
-            const meta = { addonId: addonId, id: it.id, title: it.title, icon: it.icon, order: it.order };
+            const meta = { addonId: addonId, id: it.id, title: it.title, icon: it.icon, order: it.order, keepInLearningMode: !!it.keepInLearningMode };
             if (helper && typeof helper.add === 'function') {
                 helper.add(meta);
                 helper.onOpen(it.id, it.run);
@@ -750,7 +751,7 @@
         // Re-register after a short delay in case the host wasn't ready.
         setTimeout(function () {
             items.forEach(function (it) {
-                const meta = { addonId: addonId, id: it.id, title: it.title, icon: it.icon, order: it.order };
+                const meta = { addonId: addonId, id: it.id, title: it.title, icon: it.icon, order: it.order, keepInLearningMode: !!it.keepInLearningMode };
                 try {
                     if (typeof client.registerHamburger === 'function') client.registerHamburger(meta);
                     else client.registerMenu(meta);
