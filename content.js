@@ -33,7 +33,7 @@
     client.registerAddon({
         id: 'egodact-learning-mode',
         name: 'Learning Mode',
-        version: '0.3.1',
+        version: '0.3.2',
         description: 'Eisenhower matrix, compact mode and floating notepad.',
         author: 'MaxiTaxi',
         source: 'https://github.com/hoggie-homerserver/Egodact_addon_Learning_Mode'
@@ -200,6 +200,7 @@
         { key: 'hideBeta', label: 'Beta-knop', desc: 'Verberg de beta-knop' },
         { key: 'hideAddons', label: 'Addons-knop', desc: 'Verberg de addons-knop' },
         { key: 'hideAddonButtons', label: 'Addon-knoppen', desc: 'Verberg alle addon-knoppen in de topbar en het hamburgermenu' },
+        { key: 'hideAddonGames', label: 'Addon-games', desc: 'Verberg addon-games in het games-menu' },
         { key: 'compactCards', label: 'Compacte kaarten', desc: 'Minder padding op het bord' }
     ];
 
@@ -299,6 +300,19 @@
         }
     }
 
+    function ensureCompactStyles() {
+        if (document.getElementById('egodact-lm-compact-styles')) return;
+        const style = document.createElement('style');
+        style.id = 'egodact-lm-compact-styles';
+        style.textContent = '.egodact-hide-addon-games .egodact-addon-games-section{display:none !important;}';
+        (document.head || document.documentElement).appendChild(style);
+    }
+
+    function applyAddonGamesHiding(hide) {
+        ensureCompactStyles();
+        document.documentElement.classList.toggle('egodact-hide-addon-games', !!hide);
+    }
+
     function applyCompact() {
         const compactOn = !!store.get('compactCards', false);
         document.body.classList.toggle('lm-compact', compactOn);
@@ -315,6 +329,7 @@
             el.style.setProperty('display', hideAddons ? 'none' : '', 'important');
         });
         applyHamburgerHiding(hideAddons);
+        applyAddonGamesHiding(!!store.get('hideAddonGames', false));
     }
 
     // ------------------------------------------------------------
